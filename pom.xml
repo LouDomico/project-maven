@@ -13,7 +13,7 @@
         <maven.compiler.target>18</maven.compiler.target>
     </properties>
 
-
+<!--    создаём зависимости-->
     <dependencies>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -34,12 +34,44 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <version>5.8.2</version>
-            <scope>test</scope>
+            <scope>test</scope>   <!--видимость плагина только при выполнении теста-->
+                                  <!--у остальных по дефолту - compile -->
         </dependency>
     </dependencies>
 
+
+
     <build>
+        <!--Добавить секцию “resources”, в которой сказать, что собранные JAR-зависимости это ресурс, чтоб плагин maven-jar-plugin сложил их внутрь JAR-файла в папку lib/-->
+        <!--ресурсы добавляются автоматически-->
+        <resources>
+            <resource>
+                <directory>${project.build.directory}/lib</directory>
+                <targetPath>lib/</targetPath>
+            </resource>
+        </resources>
+
         <plugins>
+            <plugin>
+                <!--плагин maven-jar-plugin, который сделает jar файл, содержащий код игры и зависимости-->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <!--настройка манифест файла -->
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                            <mainClass>org.eclipse.jdt.internal.jarinjarloader.JarRsrcLoader</mainClass>
+                        </manifest>
+                        <manifestEntries>
+                            <Rsrc-Main-Class>com.javarush.games.racer.RacerGame</Rsrc-Main-Class>
+                            <Class-Path>./</Class-Path>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
 
             <!-- Usual compilation -->
             <plugin>
@@ -61,21 +93,87 @@
                 </configuration>
             </plugin>
 
-            <plugin>
+            <plugin> <!--для установки библиотеки движка в локальную библиотеку-->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-install-plugin</artifactId>
                 <version>3.1.0</version>
             </plugin>
-
+            <!--пропуск ложного тест файла-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.12.4</version>
+                <version>3.1.2</version>
                 <configuration>
-                    <includes>
-                        <include>**/StrangeTest.java</include>
-                    </includes>
+                    <excludes>
+                        <exclude>**/StrangeTest</exclude>
+                    </excludes>
                 </configuration>
+            </plugin>
+
+            <!-- думал использовать этот плагин, но "плагин следует стратегии "побеждает последний записавший"" (с) какой-то сайт -->
+            <!-- он просто перезаписывает пакет com на тот, который в либе с движком. Не знаю как исправить -->
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-assembly-plugin</artifactId>-->
+<!--                <version>3.6.0</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>male-assembly</id>-->
+<!--                        <phase>generate-resources</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>single</goal>-->
+<!--                        </goals>-->
+<!--                        <configuration>-->
+<!--                            <manifest>-->
+<!--&lt;!&ndash;                                <addClasspath>true</addClasspath>&ndash;&gt;-->
+<!--                                <mainClass>org.eclipse.jdt.internal.jarinjarloader.JarRsrcLoader</mainClass>-->
+<!--                            </manifest>-->
+<!--                            <manifestEntries>-->
+<!--                                <Rsrc-Main-Class>com.javarush.games.racer.RacerGame</Rsrc-Main-Class>-->
+<!--&lt;!&ndash;                                <Class-Path>./</Class-Path>&ndash;&gt;-->
+<!--                            </manifestEntries>-->
+<!--                            <descriptorRefs>-->
+<!--                                <descriptorRef>jar-with-dependencies</descriptorRef>-->
+<!--                            </descriptorRefs>-->
+<!--                        </configuration>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
+
+            <plugin>
+                <!--плагин, который соберет все зависимости (с scope compile) и сложит в какую-то директорию при сборке-->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <!-- на самом первом этапе, т.к. при вызове инсталл, если позже, не добавятся -->
+                        <!-- артефакт соберётся без зависимостей -->
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <!-- скопировать зависимости  -->
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <!-- сюда -->
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <!-- только те, которые видны на этапе compile -->
+                            <includeScope>compile</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>3.12.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <version>3.4.5</version>
+
             </plugin>
         </plugins>
     </build>
